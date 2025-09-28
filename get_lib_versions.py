@@ -1,6 +1,6 @@
 import importlib.metadata
 packages = [
-    "langchain","python-dotenv","langchain-core","streamlit"
+    "langchain","python-dotenv","langchain-core","streamlit","Fastapi"
 ]
 
 for pkg in packages : 
