@@ -8,4 +8,4 @@ for pkg in packages :
         version=importlib.metadata.version(pkg)
         print(f"{pkg}=={version}")
     except importlib.metadata.PackageNotFoundError:
-        print(f"{pke} (not installed)")
+        print(f"{pkg} (not installed)")
