@@ -12,3 +12,4 @@ wheels/
 .vscode
 
 .ipynb_checkpoints
+logs
