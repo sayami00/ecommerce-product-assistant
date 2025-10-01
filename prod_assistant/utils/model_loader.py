@@ -9,6 +9,8 @@ from langchain_groq import ChatGroq
 from prod_assistant.logger import GLOBAL_LOGGER as log
 from prod_assistant.exception.custom_exception import ProductAssistantException
 import asyncio
+load_dotenv()
+
 
 
 class ApiKeyManager:

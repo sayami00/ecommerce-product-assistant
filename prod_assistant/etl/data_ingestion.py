@@ -27,8 +27,9 @@ class DataIngestion:
         """
         Load and validate required environment variables.
         """
-        load_dotenv()
         
+        load_dotenv()
+        print("here i am ")
         required_vars = ["GOOGLE_API_KEY", "ASTRA_DB_API_ENDPOINT", "ASTRA_DB_APPLICATION_TOKEN", "ASTRA_DB_KEYSPACE"]
         
         missing_vars = [var for var in required_vars if os.getenv(var) is None]
