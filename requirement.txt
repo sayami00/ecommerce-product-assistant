@@ -17,3 +17,7 @@ lxml
 python-multipart
 uvicorn
 fastapi
+langgraph
+ragas
+
+-e .
