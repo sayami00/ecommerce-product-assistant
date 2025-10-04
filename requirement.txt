@@ -19,5 +19,8 @@ uvicorn
 fastapi
 langgraph
 ragas
+langchain-mcp-adapters
+mcp
+ddgs
 
 -e .
