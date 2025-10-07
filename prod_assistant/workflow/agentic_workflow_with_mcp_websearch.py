@@ -25,17 +25,22 @@ class AgenticRAG:
         self.model_loader = ModelLoader()
         self.llm = self.model_loader.load_llm()
         self.checkpointer = MemorySaver()
+        self.mcp_client = None
+        self.mcp_tools = None
+        self.workflow = None
+        self.app = None
 
-        # MCP Client Init
+
+    async def async_init(self):
         self.mcp_client = MultiServerMCPClient({
             "hybrid_search": {
                 "command": "python",
-                "args": ["prod_assistant/mcp_servers/product_search_server.py"],  # server with retriever+websearch
+                "args": ["prod_assistant/mcp_servers/product_search_server.py"],
                 "transport": "stdio"
             }
         })
-        # Load MCP tools
-        self.mcp_tools = asyncio.run(self.mcp_client.get_tools())
+
+        self.mcp_tools = await self.mcp_client.get_tools()
 
         self.workflow = self._build_workflow()
         self.app = self.workflow.compile(checkpointer=self.checkpointer)
@@ -57,8 +62,7 @@ class AgenticRAG:
             return {"messages": [HumanMessage(content=response)]}
 
 
-
-    def _vector_retriever(self, state: AgentState):
+    def _vector_retrieverbak(self, state: AgentState):
         print("--- RETRIEVER (MCP) ---")
         query = state["messages"][-1].content
         tool = next(t for t in self.mcp_tools if t.name == "get_product_info")
@@ -66,13 +70,30 @@ class AgenticRAG:
         context = result if result else "No data"
         return {"messages": [HumanMessage(content=context)]}
 
-    def _web_search(self, state: AgentState):
+    async def _vector_retriever(self, state: AgentState):
+        print("--- RETRIEVER (MCP) ---")
+        query = state["messages"][-1].content
+        tool = next(t for t in self.mcp_tools if t.name == "get_product_info")
+        result = await tool.ainvoke({"query": query})
+        context = result if result else "No data"
+        return {"messages": [HumanMessage(content=context)]}
+
+    def _web_searchbak(self, state: AgentState):
         print("--- WEB SEARCH (MCP) ---")
         query = state["messages"][-1].content
         tool = next(t for t in self.mcp_tools if t.name == "web_search")
         result = asyncio.run(tool.ainvoke({"query": query}))
         context = result if result else "No data from web"
         return {"messages": [HumanMessage(content=context)]}
+    
+    async def _web_search(self, state: AgentState):
+        print("--- WEB SEARCH (MCP) ---")
+        query = state["messages"][-1].content
+        tool = next(t for t in self.mcp_tools if t.name == "web_search")
+        result = await tool.ainvoke({"query": query})
+        context = result if result else "No data from web"
+        return {"messages": [HumanMessage(content=context)]}
+
 
     def _grade_documents(self, state: AgentState) -> Literal["generator", "rewriter"]:
         print("--- GRADER ---")
@@ -123,32 +144,51 @@ class AgenticRAG:
         workflow.add_edge(START, "Assistant")
         workflow.add_conditional_edges(
             "Assistant",
+            
+            
             lambda state: "Retriever" if "TOOL" in state["messages"][-1].content else END,
-            {"Retriever": "Retriever", END: END},
+            
+            {
+                "Retriever": "Retriever", 
+                 END: END
+             },
         )
         workflow.add_conditional_edges(
+            
             "Retriever",
+            
             self._grade_documents,
-            {"generator": "Generator", "rewriter": "Rewriter"},
+            
+            {"generator": "Generator", 
+             
+             "rewriter": "Rewriter"},
         )
         workflow.add_edge("Generator", END)
-
-        # New path: Rewriter → WebSearch → END
+        
         workflow.add_edge("Rewriter", "WebSearch")
-        workflow.add_edge("WebSearch", "Assistant")
-        workflow.add_edge("Assistant", END)
-
+        
+        workflow.add_edge("WebSearch", "Generator")
+        
         return workflow
 
     # ---------- Public Run ----------
-    def run(self, query: str, thread_id: str = "default_thread") -> str:
+    async def runbak(self, query: str, thread_id: str = "default_thread") -> str:
         """Run the workflow for a given query and return the final answer."""
         result = self.app.invoke({"messages": [HumanMessage(content=query)]},
                                  config={"configurable": {"thread_id": thread_id}})
         return result["messages"][-1].content
 
+    async def run(self, query: str, thread_id: str = "default_thread") -> str:
+        """Run the workflow for a given query and return the final answer."""
+        result = await self.app.ainvoke(
+            {"messages": [HumanMessage(content=query)]},
+            config={"configurable": {"thread_id": thread_id}},
+        )
+        return result["messages"][-1].content
+
 
 if __name__ == "__main__":
     rag_agent = AgenticRAG()
-    answer = rag_agent.run("What is the price of iPhone 15?")
+    
+    answer = rag_agent.run("What is the price of iPhone 16?")
     print("\nFinal Answer:\n", answer)
